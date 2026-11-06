@@ -21,7 +21,7 @@
       <button id="installBtn" class="icon-btn" hidden title="ホーム画面に追加">＋ <span>インストール</span></button>
     </header>
 
-    <main>
+    <main id="libraryPage">
       <section class="hero">
         <div class="hero-copy">
           <p class="eyebrow">YOUR PRIVATE CINEMA</p>
@@ -72,8 +72,25 @@
         </div>
       </section>
     </main>
-
-    <footer><span>MY CINEMA</span><span>EVERY FILM HAS A STORY.</span></footer>
+    <main id="detailPage" class="detail-page" hidden>
+      <button class="outline-btn back-btn" id="backToLibrary">← ホームに戻る</button>
+      <section id="detailHero" class="detail-hero">
+        <div class="detail-hero-overlay"></div>
+        <div class="detail-hero-content">
+          <div class="detail-poster-wrap"><img id="detailPoster" class="detail-poster" alt="作品ポスター"></div>
+          <div class="detail-title-group"><p class="eyebrow">YOUR FILM JOURNAL</p><h1 id="detailTitle"></h1><p id="detailMeta" class="detail-meta"></p><div id="detailRating" class="detail-rating"></div><p class="detail-view-count">鑑賞回数：<strong id="detailViewCount">0</strong>回</p><button class="primary-btn" id="detailEditBtn">記録を編集する</button></div>
+        </div>
+      </section>
+      <section class="detail-content">
+        <div class="detail-block"><p class="eyebrow">ABOUT THE FILM</p><h2>作品情報</h2><p id="detailOverview" class="detail-copy"></p><p id="detailCredits" class="detail-credits"></p></div>
+        <div class="detail-block"><p class="eyebrow">YOUR REVIEW</p><h2>感想・レビュー</h2><p id="detailReview" class="detail-copy"></p></div>
+        <div class="detail-block"><p class="eyebrow">MEMORABLE SCENE</p><h2>印象に残ったシーン</h2><p id="detailScene" class="detail-copy"></p></div>
+        <div class="detail-block"><p class="eyebrow">YOUR INTERPRETATION</p><h2>自分なりの解釈・考察</h2><p id="detailThought" class="detail-copy"></p></div>
+      </section>
+      <section class="recommend-section"><div class="section-heading"><div><p class="eyebrow">BECAUSE YOU WATCHED THIS</p><h2>この作品が好きなら</h2></div></div><div id="recommendShelf" class="horizontal-shelf"></div></section>
+      <section class="recommend-section"><div class="section-heading"><div><p class="eyebrow">FROM YOUR COLLECTION</p><h2>あなたのライブラリから</h2></div></div><div id="relatedShelf" class="horizontal-shelf"></div></section>
+    </main>
+    <footer><span>MY CINEMA</span><span>EVERY FILM HAS A STORY.</span><small class="tmdb-credit">This product uses the TMDB API but is not endorsed or certified by TMDB.</small></footer>
   </div>
 
   <dialog id="movieDialog" class="modal">
@@ -82,7 +99,7 @@
         <div><p class="eyebrow">FILM JOURNAL</p><h2 id="dialogTitle">映画を記録する</h2></div>
         <button type="button" class="close-btn" id="closeDialog" aria-label="閉じる">×</button>
       </div>
-      <input type="hidden" id="movieId">
+      <input type="hidden" id="movieId"><input type="hidden" id="tmdbIdInput"><input type="hidden" id="overviewInput"><input type="hidden" id="releaseDateInput"><input type="hidden" id="runtimeInput">
       <section class="tmdb-search">
         <label for="tmdbQuery">作品を検索 <span class="optional">TMDB連携（任意）</span></label>
         <div class="search-row"><input id="tmdbQuery" type="search" placeholder="映画タイトルを入力"><button type="button" class="outline-btn" id="tmdbSearchBtn">検索</button></div>
@@ -92,8 +109,9 @@
       <div class="form-grid">
         <label class="wide">タイトル <input id="titleInput" required maxlength="120" placeholder="映画のタイトル"></label>
         <label>鑑賞日 <input id="watchedAtInput" type="date"></label>
-        <label>ジャンル <input id="genreInput" maxlength="60" placeholder="ドラマ、SF など"></label>
-        <label class="wide">ポスター画像URL <input id="posterInput" type="url" placeholder="検索結果から自動入力 / 任意"></label>
+        <label>鑑賞回数 <input id="viewCountInput" type="number" min="0" step="1" value="0"></label>
+        <fieldset class="genre-picker wide"><legend>ジャンル（複数選択可）</legend><div id="genreOptions" class="genre-options"></div></fieldset>
+        <label class="wide">ポスター画像URL <input id="posterInput" type="url" placeholder="検索結果から自動入力 / 任意"></label><label class="wide">背景画像URL <input id="backdropInput" type="url" placeholder="TMDB検索から自動入力"></label>
         <label class="wide">評価 <span class="rating-control" id="ratingControl" role="group" aria-label="評価"></span></label>
         <label class="wide">感想・レビュー <textarea id="reviewInput" rows="4" placeholder="観終わった直後の率直な感想を残そう。"></textarea></label>
         <label class="wide">印象に残ったシーン <textarea id="sceneInput" rows="3" placeholder="忘れたくない場面、セリフ、演出など"></textarea></label>

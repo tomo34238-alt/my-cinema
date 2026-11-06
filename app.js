@@ -1,178 +1,62 @@
-const STORAGE_KEY = "myCinema.movies.v1";
-const API_KEY_STORAGE = "myCinema.tmdbKey";
-const TMDB_IMAGE = "https://image.tmdb.org/t/p/w500";
-let movies = [];
-let selectedRating = 0;
-let activeGenre = "すべて";
-let deferredInstallPrompt = null;
-
-const $ = (id) => document.getElementById(id);
-const movieDialog = $("movieDialog");
-const settingsDialog = $("settingsDialog");
-
-function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)); }
-function safeParse(raw, fallback){ try{return JSON.parse(raw) ?? fallback;}catch{return fallback;} }
-function loadData(){
-  const data = safeParse(localStorage.getItem(STORAGE_KEY), []);
-  movies = Array.isArray(data) ? data : [];
-  movies = movies.map(m => ({
-    id: m.id || uid(), title: String(m.title || "タイトル未設定"),
-    watchedAt: m.watchedAt || "", genre: m.genre || "",
-    poster: m.poster || "", rating: Math.min(5, Math.max(0, Number(m.rating) || 0)),
-    review: m.review || "", scene: m.scene || "", thought: m.thought || "",
-    favorite: Boolean(m.favorite), tmdbId: m.tmdbId || null
-  }));
+const STORAGE_KEY="myCinema.movies.v1",API_KEY_STORAGE="myCinema.tmdbKey",IMG="https://image.tmdb.org/t/p/w500",BACKDROP="https://image.tmdb.org/t/p/w1280";
+const GENRES=["アクション","アドベンチャー","アニメーション","コメディ","犯罪","ドキュメンタリー","ドラマ","ファミリー","ファンタジー","歴史","ホラー","音楽","ミステリー","ロマンス","SF","テレビ映画","スリラー","戦争","西部劇","その他"];
+const TMDB_GENRES={28:"アクション",12:"アドベンチャー",16:"アニメーション",35:"コメディ",80:"犯罪",99:"ドキュメンタリー",18:"ドラマ",10751:"ファミリー",14:"ファンタジー",36:"歴史",27:"ホラー",10402:"音楽",9648:"ミステリー",10749:"ロマンス",878:"SF",10770:"テレビ映画",53:"スリラー",10752:"戦争",37:"西部劇"};
+let movies=[],selectedRating=0,activeGenre="すべて",currentMovieId=null,recommendCache={};
+const $=id=>document.getElementById(id),movieDialog=$("movieDialog"),settingsDialog=$("settingsDialog");
+const uid=()=>crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2);
+const parse=(s,f)=>{try{return JSON.parse(s)??f}catch{return f}};
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=d=>{if(!d)return"鑑賞日未設定";const x=new Date(d+"T00:00:00");return`${x.getFullYear()}.${String(x.getMonth()+1).padStart(2,"0")}.${String(x.getDate()).padStart(2,"0")}`};
+function normalize(m){let g=Array.isArray(m.genres)?m.genres:(m.genre?String(m.genre).split(/[、,／/・]/).map(x=>x.trim()).filter(Boolean):[]);return{id:m.id||uid(),title:String(m.title||"タイトル未設定"),watchedAt:m.watchedAt||"",genres:[...new Set(g)],genre:g.join("・"),poster:m.poster||"",backdrop:m.backdrop||"",overview:m.overview||"",releaseDate:m.releaseDate||"",runtime:m.runtime||"",tmdbId:m.tmdbId||null,rating:Math.min(5,Math.max(0,Number(m.rating)||0)),viewCount:Math.max(0,Math.floor(Number(m.viewCount)||0)),review:m.review||"",scene:m.scene||"",thought:m.thought||"",favorite:Boolean(m.favorite)}}
+function load(){let d=parse(localStorage.getItem(STORAGE_KEY),[]);movies=(Array.isArray(d)?d:[]).map(normalize)}
+function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(movies))}
+function toast(s){let e=$("toast");e.textContent=s;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2400)}
+function sorted(list,mode="newest"){return [...list].sort((a,b)=>mode==="oldest"?(a.watchedAt||"").localeCompare(b.watchedAt||""):mode==="rating"?b.rating-a.rating:mode==="title"?a.title.localeCompare(b.title,"ja"):(b.watchedAt||"").localeCompare(a.watchedAt||""))}
+function stats(){ $("statCount").textContent=movies.length;let r=movies.filter(m=>m.rating);$("statAverage").textContent=r.length?(r.reduce((s,m)=>s+m.rating,0)/r.length).toFixed(1):"—";$("statFavorites").textContent=movies.filter(m=>m.favorite).length;let n=new Date(),mm=String(n.getMonth()+1).padStart(2,"0");$("statMonth").textContent=movies.filter(m=>m.watchedAt?.startsWith(`${n.getFullYear()}-${mm}`)).length}
+function posterCard(m,small=false){
+  return `<article class="shelf-card ${small?"small":""}" data-id="${esc(m.id)}" tabindex="0" role="button"><div class="shelf-poster">${m.poster?`<img src="${esc(m.poster)}" alt="${esc(m.title)}" loading="lazy" onerror="this.style.display='none'">`:'<span class="poster-placeholder">MY<br>CINEMA</span>'}${m.favorite?'<span class="shelf-fav">♥</span>':""}</div><div class="shelf-card-title">${esc(m.title)}</div><div class="shelf-card-sub">${m.rating?"★ "+m.rating+"/5":"未評価"}　・　鑑賞${m.viewCount||0}回</div></article>`;
 }
-function saveData(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(movies)); }
-function toast(message){ const el=$("toast"); el.textContent=message; el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),2300); }
-function escapeHtml(value){return String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function formatDate(date){ if(!date)return "鑑賞日未設定"; const d=new Date(date+"T00:00:00"); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`; }
-
-function renderStats(){
-  $("statCount").textContent = movies.length;
-  const rated=movies.filter(m=>m.rating>0);
-  $("statAverage").textContent = rated.length ? (rated.reduce((s,m)=>s+m.rating,0)/rated.length).toFixed(1) : "—";
-  $("statFavorites").textContent = movies.filter(m=>m.favorite).length;
-  const now=new Date(), month=String(now.getMonth()+1).padStart(2,"0"), year=now.getFullYear();
-  $("statMonth").textContent=movies.filter(m=>m.watchedAt && m.watchedAt.startsWith(`${year}-${month}`)).length;
-}
-function renderGenres(){
-  const genres=[...new Set(movies.map(m=>m.genre.trim()).filter(Boolean))].sort();
-  const all=["すべて",...genres];
-  if(!all.includes(activeGenre))activeGenre="すべて";
-  $("genreChips").innerHTML=all.map(g=>`<button class="chip ${g===activeGenre?"active":""}" data-genre="${escapeHtml(g)}">${escapeHtml(g)}</button>`).join("");
-  $("genreChips").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{activeGenre=b.dataset.genre;renderLibrary();}));
-}
+function wireCards(root){root.querySelectorAll("[data-id]").forEach(c=>{let fn=()=>showDetail(c.dataset.id);c.onclick=fn;c.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fn()}}})}
+function shelf(title,sub,list){if(!list.length)return"";return `<section class="movie-shelf"><div class="shelf-heading"><div><h2>${title}</h2>${sub?`<p>${sub}</p>`:""}</div><span>${list.length} FILMS</span></div><div class="horizontal-shelf">${list.map(m=>posterCard(m)).join("")}</div></section>`}
+function renderGenres(){let gs=[...new Set(movies.flatMap(m=>m.genres))].sort(),all=["すべて",...gs];if(!all.includes(activeGenre))activeGenre="すべて";$("genreChips").innerHTML=all.map(g=>`<button class="chip ${g===activeGenre?"active":""}" data-g="${esc(g)}">${esc(g)}</button>`).join("");$("genreChips").querySelectorAll("button").forEach(b=>b.onclick=()=>{activeGenre=b.dataset.g;renderHome()})}
+function renderHero(){let latest=sorted(movies,"newest").find(m=>m.watchedAt)||sorted(movies,"newest")[0];let hero=$("homeHero");if(!latest){hero.style.backgroundImage="linear-gradient(105deg,#25211c,#111820 70%)";$("homeHeroTitle").textContent="あなたの映画ライブラリ";$("homeHeroMeta").textContent="観た映画と、そこに残った時間。";$("homeHeroReview").textContent="映画を登録すると、最近観た作品がここに表示されます。";$("homeHeroOpen").hidden=true;return}hero.style.backgroundImage=`linear-gradient(90deg,rgba(10,12,15,.96) 0%,rgba(10,12,15,.78) 46%,rgba(10,12,15,.28) 100%),linear-gradient(0deg,rgba(10,12,15,.65),transparent 70%),url("${latest.backdrop||latest.poster||""}")`;$("homeHeroTitle").textContent=latest.title;$("homeHeroMeta").textContent=[fmt(latest.watchedAt),latest.genres.join("・"),latest.rating?`★ ${latest.rating}/5`:""].filter(Boolean).join("　／　");$("homeHeroReview").textContent=latest.review||"最近観た作品";$("homeHeroOpen").hidden=false;$("homeHeroOpen").onclick=()=>showDetail(latest.id)}
 function renderLibrary(){
-  renderStats(); renderGenres();
-  const query=$("librarySearch").value.trim().toLowerCase();
-  const filter=$("filterSelect").value;
-  let list=movies.filter(m=>{
-    const matchesQuery=[m.title,m.review,m.scene,m.thought,m.genre].join(" ").toLowerCase().includes(query);
-    const matchesGenre=activeGenre==="すべて"||m.genre===activeGenre;
-    const matchesFilter=filter==="all"||(filter==="favorites"&&m.favorite)||(filter==="rated"&&m.rating>0)||(filter==="unrated"&&m.rating===0);
-    return matchesQuery&&matchesGenre&&matchesFilter;
-  });
-  const sort=$("sortSelect").value;
-  list.sort((a,b)=>sort==="oldest"?(a.watchedAt||"").localeCompare(b.watchedAt||""):sort==="rating"?b.rating-a.rating:sort==="title"?a.title.localeCompare(b.title,"ja"):(b.watchedAt||"").localeCompare(a.watchedAt||""));
-  $("movieGrid").innerHTML=list.map(m=>{
-    const poster=m.poster?`<img src="${escapeHtml(m.poster)}" alt="${escapeHtml(m.title)}のポスター" loading="lazy" onerror="this.remove()">`:`<div class="poster-placeholder">MY<br>CINEMA</div>`;
-    return `<article class="movie-card" data-id="${escapeHtml(m.id)}" tabindex="0" role="button" aria-label="${escapeHtml(m.title)}を編集">
-      <div class="poster-wrap">${poster}<span class="fav-mark" title="お気に入り">${m.favorite?"♥":"♡"}</span></div>
-      <div class="card-info"><h3 class="card-title">${escapeHtml(m.title)}</h3><div class="card-meta"><span>${escapeHtml(formatDate(m.watchedAt))}</span><span>${escapeHtml(m.genre||"ジャンル未設定")}</span></div><div class="card-rating">${m.rating?"★".repeat(m.rating)+"<span style='color:#645b4e'>"+ "★".repeat(5-m.rating)+"</span>":"未評価"}</div></div>
-    </article>`;
-  }).join("");
-  $("movieGrid").querySelectorAll(".movie-card").forEach(card=>{
-    const open=()=>openMovie(card.dataset.id);
-    card.addEventListener("click",open); card.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open();}});
-  });
-  $("emptyState").classList.toggle("show",list.length===0);
-  $("emptyState").querySelector("h3").textContent=movies.length===0?"最初の一本を記録しよう":"作品が見つかりませんでした";
-  $("emptyState").querySelector("p").textContent=movies.length===0?"観た映画を追加すると、ここにあなたのライブラリが育っていきます。":"検索条件や絞り込みを変更してみてください。";
-  $("emptyAddBtn").style.display=movies.length===0?"inline-block":"none";
+  const q=$("librarySearch").value.trim().toLowerCase(),f=$("filterSelect").value;
+  let a=movies.filter(m=>[m.title,m.review,m.scene,m.thought,m.genres.join(" ")].join(" ").toLowerCase().includes(q)
+    &&(activeGenre==="すべて"||m.genres.includes(activeGenre))
+    &&(f==="all"||(f==="favorites"&&m.favorite)||(f==="rated"&&m.rating>0)||(f==="unrated"&&!m.rating)));
+  const s=$("sortSelect").value;
+  a=sorted(a,s);
+  $("movieGrid").innerHTML=a.map(m=>`<article class="movie-card" data-id="${esc(m.id)}" tabindex="0" role="button">
+    <div class="poster-wrap">${m.poster?`<img src="${esc(m.poster)}" alt="${esc(m.title)}" loading="lazy" onerror="this.remove()">`:'<div class="poster-placeholder">MY<br>CINEMA</div>'}
+      <span class="fav-mark">${m.favorite?"♥":"♡"}</span>
+    </div>
+    <div class="card-info"><h3 class="card-title">${esc(m.title)}</h3>
+      <div class="card-meta"><span>${esc(fmt(m.watchedAt))}</span><span>鑑賞${m.viewCount||0}回</span></div>
+      <div class="card-rating">${m.rating?"★".repeat(m.rating)+"<span style='color:#645b4e'>"+"★".repeat(5-m.rating)+"</span>":"未評価"}</div>
+    </div></article>`).join("");
+  wireCards($("movieGrid"));
+  $("emptyState").classList.toggle("show",!a.length);
+  $("emptyState").querySelector("h3").textContent=movies.length?"作品が見つかりませんでした":"最初の一本を記録しよう";
+  $("emptyState").querySelector("p").textContent=movies.length?"検索条件や絞り込みを変更してみてください。":"観た映画を追加すると、ここにあなたのライブラリが育っていきます。";
+  $("emptyAddBtn").style.display=movies.length?"none":"inline-block";
 }
-function setRating(value){
-  selectedRating=value;
-  $("ratingControl").innerHTML=[1,2,3,4,5].map(n=>`<button type="button" class="star-btn ${n<=selectedRating?"selected":""}" data-rating="${n}" aria-label="${n}点">★</button>`).join("");
-  $("ratingControl").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>setRating(Number(b.dataset.rating))));
-}
-function resetForm(){
-  $("movieForm").reset(); $("movieId").value=""; $("dialogTitle").textContent="映画を記録する";
-  $("deleteBtn").hidden=true; $("searchResults").innerHTML=""; $("tmdbQuery").value="";
-  $("watchedAtInput").value=new Date().toISOString().slice(0,10); setRating(0);
-}
-function openMovie(id){
-  resetForm();
-  if(id){
-    const m=movies.find(x=>x.id===id); if(!m)return;
-    $("dialogTitle").textContent="記録を編集"; $("movieId").value=m.id;
-    $("titleInput").value=m.title; $("watchedAtInput").value=m.watchedAt;
-    $("genreInput").value=m.genre; $("posterInput").value=m.poster;
-    $("reviewInput").value=m.review; $("sceneInput").value=m.scene;
-    $("thoughtInput").value=m.thought; $("favoriteInput").checked=m.favorite;
-    setRating(m.rating); $("deleteBtn").hidden=false;
-  }
-  movieDialog.showModal();
-}
-function saveMovie(event){
-  event.preventDefault();
-  const title=$("titleInput").value.trim(); if(!title){toast("タイトルを入力してください");return;}
-  const id=$("movieId").value;
-  const record={id:id||uid(),title,watchedAt:$("watchedAtInput").value,genre:$("genreInput").value.trim(),poster:$("posterInput").value.trim(),rating:selectedRating,review:$("reviewInput").value.trim(),scene:$("sceneInput").value.trim(),thought:$("thoughtInput").value.trim(),favorite:$("favoriteInput").checked};
-  if(id){const index=movies.findIndex(m=>m.id===id);if(index>=0)movies[index]={...movies[index],...record};}
-  else movies.unshift(record);
-  saveData(); movieDialog.close(); renderLibrary(); toast(id?"記録を更新しました":"映画を追加しました");
-}
-function deleteCurrentMovie(){
-  const id=$("movieId").value; if(!id)return;
-  if(!confirm("この映画の記録を削除しますか？"))return;
-  movies=movies.filter(m=>m.id!==id);saveData();movieDialog.close();renderLibrary();toast("記録を削除しました");
-}
-function getApiKey(){return localStorage.getItem(API_KEY_STORAGE)||"";}
-async function searchTMDB(){
-  const key=getApiKey(), query=$("tmdbQuery").value.trim();
-  if(!key){toast("設定からTMDB APIキーを登録してください");return;}
-  if(!query){toast("検索するタイトルを入力してください");return;}
-  $("searchResults").innerHTML="<p class='hint'>検索しています…</p>";
-  try{
-    const url=`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&include_adult=false&language=ja-JP&page=1`;
-    const response=await fetch(url,{headers:{Authorization:`Bearer ${key}`,accept:"application/json"}});
-    if(!response.ok)throw new Error(response.status===401?"APIキーを確認してください":"検索に失敗しました");
-    const data=await response.json();
-    const results=(data.results||[]).slice(0,6);
-    if(!results.length){$("searchResults").innerHTML="<p class='hint'>作品が見つかりませんでした。</p>";return;}
-    $("searchResults").innerHTML=results.map(m=>{
-      const poster=m.poster_path?TMDB_IMAGE+m.poster_path:"";
-      return `<button type="button" class="result-item" data-tmdb="${m.id}">
-        ${poster?`<img src="${poster}" alt="">`:`<span class="poster-placeholder">✦</span>`}
-        <span>${escapeHtml(m.title)}<small>${escapeHtml((m.release_date||"").slice(0,4))}年 / ${escapeHtml(m.original_title||"")}</small></span>
-      </button>`;
-    }).join("");
-    $("searchResults").querySelectorAll("[data-tmdb]").forEach(btn=>btn.addEventListener("click",()=>{
-      const m=results.find(x=>String(x.id)===btn.dataset.tmdb); if(!m)return;
-      $("titleInput").value=m.title;
-      $("posterInput").value=m.poster_path?TMDB_IMAGE+m.poster_path:"";
-      $("genreInput").value="";
-      $("searchResults").innerHTML="";
-      toast("作品情報を入力しました。ジャンルや感想を追加してください");
-    }));
-  }catch(err){$("searchResults").innerHTML=`<p class="hint">${escapeHtml(err.message||"通信エラー")}</p>`;}
-}
-function exportData(){
-  const blob=new Blob([JSON.stringify({version:1,exportedAt:new Date().toISOString(),movies},null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`my-cinema-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);toast("バックアップを書き出しました");
-}
-async function importData(file){
-  if(!file)return;
-  try{
-    const parsed=safeParse(await file.text(),null);
-    const incoming=Array.isArray(parsed)?parsed:parsed?.movies;
-    if(!Array.isArray(incoming))throw new Error("ファイル形式が正しくありません");
-    if(!confirm(`${incoming.length}件の映画データを読み込み、現在のデータと置き換えますか？`))return;
-    movies=incoming.map(m=>({...m,id:m.id||uid()}));saveData();renderLibrary();toast("データを読み込みました");settingsDialog.close();
-  }catch(e){toast(e.message||"読み込みに失敗しました");}
-}
-function setupInstall(){
-  window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;$("installBtn").hidden=false;});
-  $("installBtn").addEventListener("click",async()=>{if(!deferredInstallPrompt)return;deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;$("installBtn").hidden=true;});
-}
-function setupEvents(){
-  ["addBtn","heroAddBtn","emptyAddBtn"].forEach(id=>$(id).addEventListener("click",()=>openMovie()));
-  $("movieForm").addEventListener("submit",saveMovie);
-  $("closeDialog").addEventListener("click",()=>movieDialog.close());
-  $("cancelBtn").addEventListener("click",()=>movieDialog.close());
-  $("deleteBtn").addEventListener("click",deleteCurrentMovie);
-  $("tmdbSearchBtn").addEventListener("click",searchTMDB);
-  $("tmdbQuery").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB();}});
-  $("librarySearch").addEventListener("input",renderLibrary);
-  $("sortSelect").addEventListener("change",renderLibrary);
-  $("filterSelect").addEventListener("change",renderLibrary);
-  $("settingsBtn").addEventListener("click",()=>{ $("apiKeyInput").value=getApiKey();settingsDialog.showModal();});
-  $("closeSettings").addEventListener("click",()=>settingsDialog.close());
-  $("cancelSettings").addEventListener("click",()=>settingsDialog.close());
-  $("settingsForm").addEventListener("submit",e=>{e.preventDefault();localStorage.setItem(API_KEY_STORAGE,$("apiKeyInput").value.trim());settingsDialog.close();toast("設定を保存しました");});
-  $("exportBtn").addEventListener("click",exportData);
-  $("importInput").addEventListener("change",e=>importData(e.target.files[0]));
-}
-loadData();setupEvents();setupInstall();renderLibrary();
-if("serviceWorker" in navigator && location.protocol!=="file:"){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}
+function renderHome(){stats();renderGenres();renderLibrary()}
+function renderGenresForm(sel=[]){$("genreOptions").innerHTML=GENRES.map(g=>`<label class="genre-option"><input type="checkbox" value="${g}" ${sel.includes(g)?"checked":""}>${g}</label>`).join("")}
+function selectedGenres(){return [...$("genreOptions").querySelectorAll("input:checked")].map(x=>x.value)}
+function setRating(n){selectedRating=n;$("ratingControl").innerHTML=[1,2,3,4,5].map(i=>`<button type="button" class="star-btn ${i<=n?"selected":""}" data-r="${i}">★</button>`).join("");$("ratingControl").querySelectorAll("button").forEach(b=>b.onclick=()=>setRating(+b.dataset.r))}
+function resetForm(){$("movieForm").reset();["movieId","tmdbIdInput","overviewInput","releaseDateInput","runtimeInput"].forEach(id=>$(id).value="");$("dialogTitle").textContent="映画を記録する";$("deleteBtn").hidden=true;$("searchResults").innerHTML="";$("tmdbQuery").value="";$("watchedAtInput").value=new Date().toISOString().slice(0,10);renderGenresForm();setRating(0)}
+function openMovie(id){resetForm();if(id){let m=movies.find(x=>x.id===id);if(!m)return;$("dialogTitle").textContent="記録を編集";$("movieId").value=m.id;$("titleInput").value=m.title;$("watchedAtInput").value=m.watchedAt;$("posterInput").value=m.poster;$("backdropInput").value=m.backdrop;$("tmdbIdInput").value=m.tmdbId||"";$("overviewInput").value=m.overview||"";$("releaseDateInput").value=m.releaseDate||"";$("runtimeInput").value=m.runtime||"";$("viewCountInput").value=m.viewCount||0;$("reviewInput").value=m.review;$("sceneInput").value=m.scene;$("thoughtInput").value=m.thought;$("favoriteInput").checked=m.favorite;renderGenresForm(m.genres);setRating(m.rating);$("deleteBtn").hidden=false}movieDialog.showModal()}
+function showDetail(id){let m=movies.find(x=>x.id===id);if(!m)return;currentMovieId=id;$("libraryPage").hidden=true;$("detailPage").hidden=false;document.body.classList.add("detail-mode");$("detailPage").style.setProperty("--detail-backdrop",`url("${m.backdrop||m.poster||""}")`);$("detailHero").style.backgroundImage="none";$("detailTitle").textContent=m.title;$("detailMeta").textContent=[m.releaseDate?m.releaseDate.slice(0,4)+"年公開":"",m.genres.join("・"),m.runtime?m.runtime+"分":"",fmt(m.watchedAt)+" 鑑賞",`鑑賞回数 ${m.viewCount||0}回`].filter(Boolean).join("　／　");$("detailViewCount").textContent=m.viewCount||0;$("detailRating").textContent=m.rating?"★".repeat(m.rating)+"☆".repeat(5-m.rating)+"　"+m.rating+"/5":"未評価";$("detailPoster").src=m.poster||"";$("detailPoster").style.visibility=m.poster?"visible":"hidden";$("detailOverview").textContent=m.overview||"作品情報は未取得です。TMDB検索から作品を選ぶと、あらすじなどが表示されます。";$("detailCredits").textContent=[m.releaseDate?"公開日："+m.releaseDate:"",m.runtime?"上映時間："+m.runtime+"分":"",m.genres.length?"ジャンル："+m.genres.join("・"):""].filter(Boolean).join("　／　");$("detailReview").textContent=m.review||"まだレビューは記録されていません。";$("detailScene").textContent=m.scene||"印象に残ったシーンはまだ記録されていません。";$("detailThought").textContent=m.thought||"考察はまだ記録されていません。";$("recommendShelf").innerHTML="<p class='shelf-loading'>TMDBのおすすめ作品を読み込んでいます…</p>";renderRelated(m);loadRecommendations(m);scrollTo({top:0,behavior:"smooth"})}
+function backHome(){$("detailPage").hidden=true;$("libraryPage").hidden=false;document.body.classList.remove("detail-mode");currentMovieId=null;renderHome();scrollTo({top:0,behavior:"smooth"})}
+function renderRelated(m){let related=movies.filter(x=>x.id!==m.id&&x.genres.some(g=>m.genres.includes(g)));$("relatedShelf").innerHTML=related.length?related.slice(0,12).map(x=>posterCard(x)).join(""):"<p class='shelf-loading'>同じジャンルの作品がライブラリに増えると、ここに表示されます。</p>";wireCards($("relatedShelf"))}
+async function loadRecommendations(m){if(!m.tmdbId){$("recommendShelf").innerHTML="<p class='shelf-loading'>TMDB作品情報が登録されていません。作品を編集してTMDB検索から選び直すと、おすすめを表示できます。</p>";return}let key=localStorage.getItem(API_KEY_STORAGE)||"";if(!key){$("recommendShelf").innerHTML="<p class='shelf-loading'>おすすめ作品の取得には設定でTMDB APIキーを登録してください。</p>";return}try{let url=`https://api.themoviedb.org/3/movie/${m.tmdbId}/recommendations?language=ja-JP&page=1`,res=await fetch(url,{headers:{Authorization:`Bearer ${key}`,accept:"application/json"}});if(!res.ok)throw Error("API error");let data=await res.json(),list=(data.results||[]).filter(x=>x.poster_path).slice(0,16);recommendCache[m.id]=list;if(!list.length){$("recommendShelf").innerHTML="<p class='shelf-loading'>現在、関連するおすすめ作品はありません。</p>";return}$("recommendShelf").innerHTML=list.map(x=>`<article class="shelf-card tmdb-recommend" data-tmdb-id="${x.id}" tabindex="0"><div class="shelf-poster"><img src="${IMG+x.poster_path}" alt="${esc(x.title)}" loading="lazy"></div><div class="shelf-card-title">${esc(x.title)}</div><div class="shelf-card-sub">${x.release_date?x.release_date.slice(0,4)+"年公開":"公開年不明"}</div><button class="mini-add-btn" data-add-tmdb="${x.id}">＋ ライブラリに追加</button></article>`).join("");$("recommendShelf").querySelectorAll("[data-add-tmdb]").forEach(b=>b.onclick=()=>addRecommendationToLibrary(+b.dataset.addTmdb,list))}catch(e){$("recommendShelf").innerHTML="<p class='shelf-loading'>おすすめ作品を取得できませんでした。ネット接続とTMDB APIキーを確認してください。</p>"}}
+async function addRecommendationToLibrary(id,list){let m=list.find(x=>x.id===id);if(!m)return;let key=localStorage.getItem(API_KEY_STORAGE)||"";try{let r=await fetch(`https://api.themoviedb.org/3/movie/${id}?language=ja-JP`,{headers:{Authorization:`Bearer ${key}`,accept:"application/json"}});let d=r.ok?await r.json():m;let g=(d.genres||[]).map(x=>TMDB_GENRES[x.id]||x.name).filter(x=>GENRES.includes(x));let record=normalize({title:d.title||m.title,poster:d.poster_path?IMG+d.poster_path:"",backdrop:d.backdrop_path?BACKDROP+d.backdrop_path:"",overview:d.overview||"",releaseDate:d.release_date||"",runtime:d.runtime||"",tmdbId:d.id,genres:g,watchedAt:"",rating:0});let existing=movies.find(x=>x.tmdbId===record.tmdbId);if(existing){toast("この作品はすでにライブラリにあります");return}movies.unshift(record);save();renderHome();toast("ライブラリに作品を追加しました")}catch(e){toast("作品情報を取得できませんでした")}}
+function saveMovie(e){e.preventDefault();let title=$("titleInput").value.trim();if(!title)return toast("タイトルを入力してください");let id=$("movieId").value,g=selectedGenres(),record=normalize({id:id||uid(),title,watchedAt:$("watchedAtInput").value,genres:g,poster:$("posterInput").value.trim(),backdrop:$("backdropInput").value.trim(),tmdbId:$("tmdbIdInput").value||null,overview:$("overviewInput").value.trim(),releaseDate:$("releaseDateInput").value||"",runtime:$("runtimeInput").value||"",rating:selectedRating,viewCount:Math.max(0,Math.floor(Number($("viewCountInput").value)||0)),review:$("reviewInput").value.trim(),scene:$("sceneInput").value.trim(),thought:$("thoughtInput").value.trim(),favorite:$("favoriteInput").checked});if(id){let i=movies.findIndex(x=>x.id===id);if(i>=0)movies[i]=record}else movies.unshift(record);save();movieDialog.close();renderHome();if(currentMovieId)showDetail(record.id);toast(id?"記録を更新しました":"映画を追加しました")}
+function deleteMovie(){let id=$("movieId").value;if(!id||!confirm("この映画の記録を削除しますか？"))return;movies=movies.filter(x=>x.id!==id);save();movieDialog.close();backHome();toast("記録を削除しました")}
+function apiKey(){return localStorage.getItem(API_KEY_STORAGE)||""}
+async function searchTMDB(){let key=apiKey(),q=$("tmdbQuery").value.trim();if(!key)return toast("設定からTMDB APIキーを登録してください");if(!q)return toast("検索するタイトルを入力してください");$("searchResults").innerHTML="<p class='hint'>検索しています…</p>";try{let r=await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(q)}&include_adult=false&language=ja-JP&page=1`,{headers:{Authorization:`Bearer ${key}`,accept:"application/json"}});if(!r.ok)throw Error("検索に失敗しました。APIキーを確認してください");let d=await r.json(),results=(d.results||[]).slice(0,7);if(!results.length){$("searchResults").innerHTML="<p class='hint'>作品が見つかりませんでした。</p>";return}$("searchResults").innerHTML=results.map(x=>`<button type="button" class="result-item" data-id="${x.id}">${x.poster_path?`<img src="${IMG+x.poster_path}" alt="">`:""}<span>${esc(x.title)}<small>${esc((x.release_date||"").slice(0,4))}年 / ${esc(x.original_title||"")}</small></span></button>`).join("");$("searchResults").querySelectorAll("[data-id]").forEach(b=>b.onclick=async()=>{let hit=results.find(x=>String(x.id)===b.dataset.id);try{let rr=await fetch(`https://api.themoviedb.org/3/movie/${hit.id}?language=ja-JP`,{headers:{Authorization:`Bearer ${key}`,accept:"application/json"}});if(!rr.ok)throw Error();let x=await rr.json(),g=(x.genres||[]).map(y=>TMDB_GENRES[y.id]||y.name).filter(y=>GENRES.includes(y));$("titleInput").value=x.title||hit.title;$("posterInput").value=x.poster_path?IMG+x.poster_path:"";$("backdropInput").value=x.backdrop_path?BACKDROP+x.backdrop_path:"";$("tmdbIdInput").value=x.id;$("overviewInput").value=x.overview||"";$("releaseDateInput").value=x.release_date||"";$("runtimeInput").value=x.runtime||"";renderGenresForm(g);$("searchResults").innerHTML="";toast("TMDBの作品情報・画像を取得しました")}catch(e){toast("作品詳細を取得できませんでした")}})}catch(e){$("searchResults").innerHTML=`<p class="hint">${esc(e.message)}</p>`}}
+function exportData(){let blob=new Blob([JSON.stringify({version:3,exportedAt:new Date().toISOString(),movies},null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`my-cinema-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);toast("バックアップを書き出しました")}
+async function importData(file){if(!file)return;try{let p=parse(await file.text(),null),list=Array.isArray(p)?p:p?.movies;if(!Array.isArray(list))throw Error("ファイル形式が正しくありません");if(!confirm(`${list.length}件のデータで現在の記録を置き換えますか？`))return;movies=list.map(normalize);save();renderHome();settingsDialog.close();toast("データを読み込みました")}catch(e){toast(e.message||"読み込みに失敗しました")}}
+function events(){["addBtn","heroAddBtn","emptyAddBtn"].forEach(id=>$(id).onclick=()=>openMovie());$("movieForm").onsubmit=saveMovie;$("closeDialog").onclick=()=>$("movieDialog").close();$("cancelBtn").onclick=()=>$("movieDialog").close();$("deleteBtn").onclick=deleteMovie;$("tmdbSearchBtn").onclick=searchTMDB;$("tmdbQuery").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();searchTMDB()}};$("librarySearch").oninput=renderHome;$("sortSelect").onchange=renderHome;$("filterSelect").onchange=renderHome;$("backToLibrary").onclick=backHome;$("detailEditBtn").onclick=()=>openMovie(currentMovieId);$("settingsBtn").onclick=()=>{$("apiKeyInput").value=apiKey();settingsDialog.showModal()};$("closeSettings").onclick=()=>$("settingsDialog").close();$("cancelSettings").onclick=()=>$("settingsDialog").close();$("settingsForm").onsubmit=e=>{e.preventDefault();localStorage.setItem(API_KEY_STORAGE,$("apiKeyInput").value.trim());settingsDialog.close();toast("設定を保存しました")};$("exportBtn").onclick=exportData;$("importInput").onchange=e=>importData(e.target.files[0])}
+load();events();renderHome();if("serviceWorker"in navigator&&location.protocol!=="file:")addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
