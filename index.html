@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#11100f">
+  <meta name="description" content="自分だけの映画日記。観た映画、評価、感想を記録するアプリ。">
+  <title>My Cinema</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="My Cinema ホーム">
+        <span class="brand-mark">M</span>
+        <span>MY <b>CINEMA</b><small>YOUR PERSONAL FILM JOURNAL</small></span>
+      </a>
+      <button id="installBtn" class="icon-btn" hidden title="ホーム画面に追加">＋ <span>インストール</span></button>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">YOUR PRIVATE CINEMA</p>
+          <h1>映画と過ごした時間を、<br><em>記録に残そう。</em></h1>
+          <p class="hero-sub">観た映画も、そのとき感じたことも。<br>あなただけの映画日記。</p>
+          <button class="primary-btn" id="heroAddBtn">＋ 映画を記録する</button>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="film-frame"><span>NOW<br>SHOWING</span><i>✦</i></div>
+          <div class="hero-orbit"></div>
+        </div>
+      </section>
+
+      <section class="stats-grid" aria-label="鑑賞統計">
+        <article class="stat-card"><span>鑑賞作品数</span><strong id="statCount">0</strong><small>FILMS WATCHED</small></article>
+        <article class="stat-card"><span>平均評価</span><strong id="statAverage">—</strong><small>AVERAGE RATING</small></article>
+        <article class="stat-card"><span>お気に入り</span><strong id="statFavorites">0</strong><small>FAVORITES</small></article>
+        <article class="stat-card"><span>今月の鑑賞</span><strong id="statMonth">0</strong><small>THIS MONTH</small></article>
+      </section>
+
+      <section class="toolbar-section">
+        <div class="section-heading">
+          <div><p class="eyebrow">YOUR COLLECTION</p><h2>マイライブラリ</h2></div>
+          <button class="outline-btn" id="addBtn">＋ 作品を追加</button>
+        </div>
+        <div class="toolbar">
+          <label class="search-box"><span>⌕</span><input id="librarySearch" type="search" placeholder="タイトル・感想を検索"></label>
+          <select id="sortSelect" aria-label="並び替え">
+            <option value="newest">鑑賞日が新しい順</option>
+            <option value="oldest">鑑賞日が古い順</option>
+            <option value="rating">評価が高い順</option>
+            <option value="title">タイトル順</option>
+          </select>
+          <select id="filterSelect" aria-label="絞り込み">
+            <option value="all">すべての作品</option>
+            <option value="favorites">お気に入り</option>
+            <option value="rated">評価あり</option>
+            <option value="unrated">未評価</option>
+          </select>
+        </div>
+        <div id="genreChips" class="genre-chips"></div>
+        <div id="movieGrid" class="movie-grid"></div>
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon">✦</div>
+          <h3>最初の一本を記録しよう</h3>
+          <p>観た映画を追加すると、ここにあなたのライブラリが育っていきます。</p>
+          <button class="primary-btn" id="emptyAddBtn">映画を追加する</button>
+        </div>
+      </section>
+    </main>
+
+    <footer><span>MY CINEMA</span><span>EVERY FILM HAS A STORY.</span></footer>
+  </div>
+
+  <dialog id="movieDialog" class="modal">
+    <form id="movieForm" method="dialog">
+      <div class="modal-head">
+        <div><p class="eyebrow">FILM JOURNAL</p><h2 id="dialogTitle">映画を記録する</h2></div>
+        <button type="button" class="close-btn" id="closeDialog" aria-label="閉じる">×</button>
+      </div>
+      <input type="hidden" id="movieId">
+      <section class="tmdb-search">
+        <label for="tmdbQuery">作品を検索 <span class="optional">TMDB連携（任意）</span></label>
+        <div class="search-row"><input id="tmdbQuery" type="search" placeholder="映画タイトルを入力"><button type="button" class="outline-btn" id="tmdbSearchBtn">検索</button></div>
+        <p class="hint" id="apiHint">検索にはTMDB APIキーが必要です。設定から登録できます。手入力でも記録できます。</p>
+        <div id="searchResults" class="search-results"></div>
+      </section>
+      <div class="form-grid">
+        <label class="wide">タイトル <input id="titleInput" required maxlength="120" placeholder="映画のタイトル"></label>
+        <label>鑑賞日 <input id="watchedAtInput" type="date"></label>
+        <label>ジャンル <input id="genreInput" maxlength="60" placeholder="ドラマ、SF など"></label>
+        <label class="wide">ポスター画像URL <input id="posterInput" type="url" placeholder="検索結果から自動入力 / 任意"></label>
+        <label class="wide">評価 <span class="rating-control" id="ratingControl" role="group" aria-label="評価"></span></label>
+        <label class="wide">感想・レビュー <textarea id="reviewInput" rows="4" placeholder="観終わった直後の率直な感想を残そう。"></textarea></label>
+        <label class="wide">印象に残ったシーン <textarea id="sceneInput" rows="3" placeholder="忘れたくない場面、セリフ、演出など"></textarea></label>
+        <label class="wide">自分なりの解釈・考察 <textarea id="thoughtInput" rows="3" placeholder="作品から感じたこと、考えたこと"></textarea></label>
+        <label class="favorite-check"><input id="favoriteInput" type="checkbox"> お気に入りに登録</label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="danger-text" id="deleteBtn" hidden>この記録を削除</button>
+        <span class="spacer"></span>
+        <button type="button" class="outline-btn" id="cancelBtn">キャンセル</button>
+        <button type="submit" class="primary-btn">保存する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="modal small-modal">
+    <form id="settingsForm" method="dialog">
+      <div class="modal-head"><div><p class="eyebrow">SETTINGS</p><h2>設定</h2></div><button type="button" class="close-btn" id="closeSettings">×</button></div>
+      <label>TMDB API Read Access Token / APIキー
+        <input id="apiKeyInput" type="password" autocomplete="off" placeholder="TMDB APIキーを入力">
+      </label>
+      <p class="hint">TMDB検索を使う場合のみ必要です。キーはこのブラウザ内に保存され、外部サーバーには送信しません。個人利用の試作向け設定です。</p>
+      <div class="settings-actions">
+        <button type="button" class="outline-btn" id="exportBtn">データを書き出す</button>
+        <label class="outline-btn file-label">データを読み込む<input type="file" id="importInput" accept="application/json"></label>
+      </div>
+      <div class="modal-actions"><span class="spacer"></span><button type="button" class="outline-btn" id="cancelSettings">閉じる</button><button type="submit" class="primary-btn">設定を保存</button></div>
+      <p class="hint">作品データはこの端末・ブラウザ内に保存されます。ブラウザのデータ消去や端末故障に備え、定期的に書き出してください。</p>
+    </form>
+  </dialog>
+
+  <button id="settingsBtn" class="settings-fab" title="設定">⚙</button>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
