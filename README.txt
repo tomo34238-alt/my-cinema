@@ -130,3 +130,22 @@ Version 4.9 (2026-11-07)
 - Fixed the rating control on mobile by separating the star buttons from the surrounding label.
 - Increased star tap targets for touch screens and added accessible labels and pressed states.
 - Updated the service worker cache version.
+
+
+【Version 4.10：端末間の手動同期】
+・設定画面に「端末間の手動同期」ガイドを追加しました。
+・同期ファイルを書き出し、AirDrop／iCloud Drive／USBなどで別端末へ渡して読み込めます。
+・読み込み前に、読み込み先端末の現在のライブラリも安全用バックアップとして自動で書き出します。
+・読み込みはライブラリ全体の置き換えです。別端末の記録を統合する機能ではありません。
+・従来のJSONバックアップ（version 3）も引き続き読み込めます。
+・TMDB APIキーは同期ファイルに含めません。各端末で必要に応じて設定してください。
+
+■ 手動同期の例（Windows → iPhone）
+1. WindowsのMy Cinemaを開き、設定 →「同期ファイルを書き出す」
+2. 作成された my-cinema-sync-日付.json をiCloud DriveまたはAirDropでiPhoneへ送る
+3. iPhoneのMy Cinemaを開き、設定 →「同期ファイルを読み込む」
+4. ファイルアプリから受け取ったJSONファイルを選ぶ
+5. 読み込み確認後、iPhone側のライブラリがWindows側の内容に置き換わります
+
+※ iPhoneからWindowsへ移す場合も逆の手順で行えます。
+※ 同期前に両方の端末で編集した場合、読み込んだ側のライブラリは置き換わります。必要な記録がある場合は、先にその端末でも同期ファイルを書き出してください。

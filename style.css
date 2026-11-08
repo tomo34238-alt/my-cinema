@@ -178,32 +178,5 @@ body.detail-mode .topbar,body.detail-mode footer{background:transparent}
   .detail-page .shelf-card{flex-basis:126px;width:126px;min-width:126px}
 }
 
-
-/* v4.10: 10-point overall rating and category score bars */
-.rating-editor{border:1px solid #5b4930;border-radius:12px;padding:17px;background:linear-gradient(145deg,#211d18,#191715)}
-.rating-editor-heading{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:15px}
-.rating-editor-heading .eyebrow{margin-bottom:4px}
-.rating-editor-heading h3{font:21px Georgia,"Yu Mincho",serif;color:var(--gold2);margin:0}
-.rating-editor-note{font-size:10px;color:var(--muted);margin:0}
-.overall-score-input{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:13px 14px;background:#121110;border:1px solid #403a32;border-radius:9px;margin-bottom:12px}
-.overall-score-input>label{font-size:13px;color:#e4d9c8}
-.overall-input-row{display:flex;align-items:center;gap:6px;color:var(--muted);white-space:nowrap}
-.overall-input-row input{width:76px;margin:0;text-align:center;font-size:22px;font-weight:700;color:var(--gold2);padding:7px 5px}
-.overall-input-row span{font-size:13px}
-.score-inputs{display:grid;gap:7px}
-.score-input-row{display:grid!important;grid-template-columns:minmax(110px,1fr) 78px 28px;align-items:center;gap:8px;padding:8px 11px;background:#121110;border:1px solid #ffffff0b;border-radius:8px;color:#d7cfc3!important;font-size:12px!important}
-.score-input-row input{margin:0;text-align:center;padding:7px 4px;font-size:14px}
-.score-input-row small{font-size:11px;color:var(--muted)}
-.overall-rating-display{letter-spacing:0!important;margin:14px 0 20px!important}
-.overall-score-label{font-size:11px;letter-spacing:1.5px;color:#d0c6b8;margin-bottom:2px}
-.overall-score-value{font:clamp(34px,4vw,48px) Georgia,"Yu Mincho",serif;color:var(--gold2);line-height:1.15}
-.overall-score-value span{font:16px Inter,-apple-system,sans-serif;color:#c8beb1}
-.overall-score-value.unrated{font-size:24px}
-.score-breakdown-block h2{margin-bottom:18px!important}
-.score-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:17px 30px}
-.score-bar-row{min-width:0}
-.score-bar-label{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:7px;font-size:13px;color:#e2d7c8}
-.score-bar-label strong{font-size:12px;color:var(--gold2);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
-.score-bar-track{height:7px;border-radius:99px;background:#51483c;overflow:hidden}
-.score-bar-track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#b88945,#e5c17e);transition:width .25s ease}
-@media(max-width:620px){.rating-editor{padding:13px}.rating-editor-heading{align-items:flex-start;flex-direction:column;gap:3px}.score-input-row{grid-template-columns:minmax(95px,1fr) 70px 25px;padding:7px 8px}.score-breakdown{grid-template-columns:1fr;gap:14px}.overall-score-value{font-size:38px}}
+.sync-panel{margin-top:20px;padding:16px;background:#24211e;border:1px solid #40382d;border-radius:11px}.sync-panel h3{font:20px Georgia,"Yu Mincho",serif;margin:0 0 8px;color:var(--text)}.sync-panel ol{margin:10px 0 12px;padding-left:22px;color:#d7cfc3;font-size:12px;line-height:1.9}.sync-panel .settings-actions{flex-wrap:wrap}.sync-panel .outline-btn{font-size:11px}.sync-panel .hint{font-size:11px}
+@media(max-width:520px){.sync-panel{padding:13px}.sync-panel .settings-actions{display:grid;grid-template-columns:1fr}.sync-panel .settings-actions>*{justify-content:center;text-align:center}}
