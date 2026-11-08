@@ -78,10 +78,11 @@
         <div class="detail-hero-overlay"></div>
         <div class="detail-hero-content">
           <div class="detail-poster-wrap"><img id="detailPoster" class="detail-poster" alt="作品ポスター"></div>
-          <div class="detail-title-group"><p class="eyebrow">YOUR FILM JOURNAL</p><h1 id="detailTitle"></h1><p id="detailMeta" class="detail-meta"></p><div id="detailRating" class="detail-rating"></div><p class="detail-view-count">鑑賞回数：<strong id="detailViewCount">0</strong>回</p><button class="primary-btn" id="detailEditBtn">記録を編集する</button></div>
+          <div class="detail-title-group"><p class="eyebrow">YOUR FILM JOURNAL</p><h1 id="detailTitle"></h1><p id="detailMeta" class="detail-meta"></p><div id="detailRating" class="detail-rating overall-rating-display"></div><p class="detail-view-count">鑑賞回数：<strong id="detailViewCount">0</strong>回</p><button class="primary-btn" id="detailEditBtn">記録を編集する</button></div>
         </div>
       </section>
       <section class="detail-content">
+        <div class="detail-block score-breakdown-block"><p class="eyebrow">YOUR FILM SCORE</p><h2>作品評価</h2><div id="detailScoreBreakdown" class="score-breakdown"></div></div>
         <div class="detail-block"><p class="eyebrow">ABOUT THE FILM</p><h2>作品情報</h2><p id="detailOverview" class="detail-copy"></p><p id="detailCredits" class="detail-credits"></p></div>
         <div class="detail-block"><p class="eyebrow">YOUR REVIEW</p><h2>感想・レビュー</h2><p id="detailReview" class="detail-copy"></p></div>
         <div class="detail-block"><p class="eyebrow">MEMORABLE SCENE</p><h2>印象に残ったシーン</h2><p id="detailScene" class="detail-copy"></p></div>
@@ -112,7 +113,11 @@
         <label>鑑賞回数 <input id="viewCountInput" type="number" min="0" step="1" value="0"></label>
         <fieldset class="genre-picker wide"><legend>ジャンル（複数選択可）</legend><div id="genreOptions" class="genre-options"></div></fieldset>
         <label class="wide">ポスター画像URL <input id="posterInput" type="url" placeholder="検索結果から自動入力 / 任意"></label><label class="wide">背景画像URL <input id="backdropInput" type="url" placeholder="TMDB検索から自動入力"></label>
-        <label class="wide">評価 <span class="rating-control" id="ratingControl" role="group" aria-label="評価"></span></label>
+        <section class="rating-editor wide" aria-labelledby="ratingEditorTitle">
+          <div class="rating-editor-heading"><div><p class="eyebrow">YOUR FILM SCORE</p><h3 id="ratingEditorTitle">作品評価</h3></div><p class="rating-editor-note">各項目は0〜10点・0.5点刻み</p></div>
+          <div class="overall-score-input"><label for="overallRatingInput">映画全体としての評価</label><div class="overall-input-row"><input id="overallRatingInput" type="number" min="0" max="10" step="0.5" inputmode="decimal" placeholder="—"><span>/ 10</span></div></div>
+          <div id="scoreInputs" class="score-inputs"></div>
+        </section>
         <label class="wide">感想・レビュー <textarea id="reviewInput" rows="4" placeholder="観終わった直後の率直な感想を残そう。"></textarea></label>
         <label class="wide">印象に残ったシーン <textarea id="sceneInput" rows="3" placeholder="忘れたくない場面、セリフ、演出など"></textarea></label>
         <label class="wide">自分なりの解釈・考察 <textarea id="thoughtInput" rows="3" placeholder="作品から感じたこと、考えたこと"></textarea></label>

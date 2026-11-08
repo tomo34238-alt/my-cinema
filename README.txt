@@ -124,3 +124,9 @@ v4.8 更新内容
 - 詳細画面下部のおすすめ作品・関連作品を横スクロール式カルーセルに復元。
 - 詳細画面の背景、カード、文字、アクセントカラーをホーム画面と同じダークブラウン＋ゴールド基調に統一。
 - ホーム画面のv3デザイン、鑑賞回数、映画データ保存形式は維持。
+
+
+Version 4.9 (2026-11-07)
+- Fixed the rating control on mobile by separating the star buttons from the surrounding label.
+- Increased star tap targets for touch screens and added accessible labels and pressed states.
+- Updated the service worker cache version.
